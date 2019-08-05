@@ -3,7 +3,7 @@ use crate::thinbasic_script::{Code, IssueSummary};
 pub fn analysis_available(code: &mut Code) -> bool {
     let content = code.get_file_content().unwrap();
 
-    content.contains("#FBCODE") || content.contains("#ENDFBCODE")
+    content.contains("#COMPILE") || content.contains("#ENDCOMPILE")
 }
 
 pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
@@ -21,7 +21,7 @@ pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
     for line in lines {
         let mut tokens = line.split_whitespace();
         let first_token_peek = tokens.next();
-        let mut first_token = "";
+        let first_token;
 
         match first_token_peek {
             None => continue,
@@ -30,7 +30,7 @@ pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
 
         line_number += 1;
 
-        if first_token == "#FBCODE" {
+        if first_token == "#COMPILE" {
             if !opened_fb_code {
                 opened_fb_code = true;
                 num_opened += 1;
@@ -40,18 +40,18 @@ pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
                     &code.main_file_name[..],
                     line_number,
                     1,
-                    "Nested #FBCODE not supported",
+                    "Nested #COMPILE not supported",
                 ));
             }
         }
 
-        if first_token == "#ENDFBCODE" {
+        if first_token == "#ENDCOMPILE" {
             if !opened_fb_code {
                 return Err(IssueSummary::new(
                     &code.main_file_name[..],
                     line_number,
                     1,
-                    "#ENDFBCODE without #FBCODE",
+                    "#ENDCOMPILE without #COMPILE",
                 ));
             } else {
                 opened_fb_code = false;
@@ -61,12 +61,12 @@ pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
     }
 
     if num_opened > num_closed {
-        return Err(IssueSummary::new(
+        Err(IssueSummary::new(
             &code.main_file_name[..],
             last_opened_fb_code_line,
             1,
-            "#FBCODE does not have matching #ENDFBCODE",
-        ));
+            "#COMPILE does not have matching #ENDCOMPILE",
+        ))
     } else {
         Ok(())
     }

@@ -1,27 +1,33 @@
 use std::env;
 use std::process::exit;
 
-mod fb_code;
+mod compile;
 mod thinbasic_script;
 
 fn main() {
-    println!("thinClippy - thinBASIC code analyzer");
+    println!("thinClippy - thinBASIC code analyzer, v0.1");
 
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
-        println!("Please supply thinBasic script file name as parameter");
+        println!("INPUT ERROR: Please supply thinBasic script file name as parameter");
         exit(1);
     }
 
     let main_file_name = (&args[1]).to_string();
     println!("Analyzing {}...\n", main_file_name);
 
-    let mut code = thinbasic_script::Code::new(main_file_name);
+    let mut code = match thinbasic_script::Code::new(main_file_name) {
+        Ok(c) => c,
+        Err(e) => {
+            println!("INPUT ERROR: {}", e);
+            exit(1)
+        }
+    };
 
     let mut issues_found = 0;
 
-    if fb_code::analysis_available(&mut code) {
-        match fb_code::pairs_match(&mut code) {
+    if compile::analysis_available(&mut code) {
+        match compile::pairs_match(&mut code) {
             Ok(()) => (),
             Err(v) => {
                 issues_found += 1;
@@ -29,7 +35,7 @@ fn main() {
             }
         };
     } else {
-        println!("No #fbCode section, skipping part of analysis...")
+        println!("No #compile section, skipping part of analysis...")
     }
 
     println!("\nAnalysis finished, {} issue(s) found.", issues_found);
