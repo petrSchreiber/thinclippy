@@ -53,17 +53,39 @@ fn get_symbol<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) ->
     return token;
 }
 
-fn get_comment<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) -> String {
+fn get_single_comment<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) -> String {
     let mut token = String::new();
 
     while let Some(&c) = char_iter.peek() {
         match c {
-            '\'' => {
+            '\r' | '\n' => return token,
+
+            _ => {
                 char_iter.next();
                 token.push(c);
             }
+        }
+    }
 
-            '\r' | '\n' => return token,
+    return token;
+}
+
+fn get_block_comment<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) -> String {
+    let mut token = String::new();
+
+    while let Some(&c) = char_iter.peek() {
+        match c {
+            '*' => {
+                    char_iter.next();
+
+                    if char_iter.peek() == Some(&'/') { // Detecting ending */
+                        char_iter.next();
+                        return token
+                    }
+                    else {
+                        token.push(c);
+                    }
+                }
 
             _ => {
                 char_iter.next();
@@ -125,7 +147,29 @@ pub fn get_simple_tokens<'a>(input: &str) -> Vec<Token> {
                 simple_tokens.push(Token::Number(number_token));
             }
 
-            '+' | '*' | '/' | '-' => {
+            '/' => {
+                char_iter.next();   // Absorb first /
+
+                if char_iter.peek() == Some(&'/') {
+                    char_iter.next();   // Absorb second /
+
+                    let comment_token = get_single_comment(c, &mut char_iter);
+                    simple_tokens.push(Token::Comment(comment_token));
+                }
+                else {
+                    if char_iter.peek() == Some(&'*') {
+                        char_iter.next();   // Absorb *
+
+                        let comment_token = get_block_comment(c, &mut char_iter);
+                        simple_tokens.push(Token::Comment(comment_token));
+                    }
+                    else {
+                        simple_tokens.push(Token::Operator(c))
+                    }                    
+                }
+            }
+
+            '+' | '*' | '-' => {
                 char_iter.next();
                 simple_tokens.push(Token::Operator(c))
             }
@@ -141,7 +185,9 @@ pub fn get_simple_tokens<'a>(input: &str) -> Vec<Token> {
             }
 
             '\'' => {
-                let comment_token = get_comment(c, &mut char_iter);
+                char_iter.next(); // Absorb '
+
+                let comment_token = get_single_comment(c, &mut char_iter);
                 simple_tokens.push(Token::Comment(comment_token));
             }
 
@@ -209,14 +255,14 @@ pub mod tests {
 
     #[test]
     fn get_operator_works() {
-        let code = "+-*/";
+        let code = "a + b - c * d / e";
 
         let tokens = get_simple_tokens(code);
 
-        assert_eq!(tokens.get(0), Some(&Token::Operator('+')));
-        assert_eq!(tokens.get(1), Some(&Token::Operator('-')));
-        assert_eq!(tokens.get(2), Some(&Token::Operator('*')));
-        assert_eq!(tokens.get(3), Some(&Token::Operator('/')));
+        assert_eq!(tokens.get(2), Some(&Token::Operator('+')));
+        assert_eq!(tokens.get(6), Some(&Token::Operator('-')));
+        assert_eq!(tokens.get(10), Some(&Token::Operator('*')));
+        assert_eq!(tokens.get(14), Some(&Token::Operator('/')));
     }
 
     #[test]
@@ -239,17 +285,45 @@ pub mod tests {
     }
 
     #[test]
-    fn get_comment() {
+    fn get_apostrophe_comment() {
         let code = "hello world ' famous sentence\nindeed";
 
         let tokens = get_simple_tokens(code);
 
         assert_eq!(
             tokens.get(4),
-            Some(&Token::Comment("' famous sentence".to_string()))
+            Some(&Token::Comment(" famous sentence".to_string()))
         );
         assert_eq!(tokens.get(5), Some(&Token::EndOfLine));
         assert_eq!(tokens.get(6), Some(&Token::Symbol("INDEED".to_string())));
+    }
+
+    #[test]
+    fn get_c_comment() {
+        let code = "hello world // famous sentence\nindeed";
+
+        let tokens = get_simple_tokens(code);
+
+        assert_eq!(
+            tokens.get(4),
+            Some(&Token::Comment(" famous sentence".to_string()))
+        );
+        assert_eq!(tokens.get(5), Some(&Token::EndOfLine));
+        assert_eq!(tokens.get(6), Some(&Token::Symbol("INDEED".to_string())));
+    }
+
+    #[test]
+    fn get_block_comment() {
+        let code = "hello /* famous \n sentence */ indeed";
+
+        let tokens = get_simple_tokens(code);
+
+        assert_eq!(
+            tokens.get(2),
+            Some(&Token::Comment(" famous \n sentence ".to_string()))
+        );
+        assert_eq!(tokens.get(3), Some(&Token::Whitespace));
+        assert_eq!(tokens.get(4), Some(&Token::Symbol("INDEED".to_string())));
     }
 
     #[test]
