@@ -76,16 +76,16 @@ fn get_block_comment<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable
     while let Some(&c) = char_iter.peek() {
         match c {
             '*' => {
-                    char_iter.next();
+                char_iter.next();
 
-                    if char_iter.peek() == Some(&'/') { // Detecting ending */
-                        char_iter.next();
-                        return token
-                    }
-                    else {
-                        token.push(c);
-                    }
+                if char_iter.peek() == Some(&'/') {
+                    // Detecting ending */
+                    char_iter.next();
+                    return token;
+                } else {
+                    token.push(c);
                 }
+            }
 
             _ => {
                 char_iter.next();
@@ -138,8 +138,14 @@ pub fn get_simple_tokens<'a>(input: &str) -> Vec<Token> {
     while let Some(&c) = char_iter.peek() {
         match c {
             'A'...'Z' | 'a'...'z' | '#' | '$' | '%' | '_' => {
-                let text_item = get_symbol(c, &mut char_iter);
-                simple_tokens.push(Token::Symbol(text_item));
+                let symbol = get_symbol(c, &mut char_iter);
+
+                if symbol == "REM" {
+                    let comment_token = get_single_comment(c, &mut char_iter);
+                    simple_tokens.push(Token::Comment(comment_token));
+                } else {
+                    simple_tokens.push(Token::Symbol(symbol));
+                }
             }
 
             '0'...'9' | '.' => {
@@ -148,24 +154,22 @@ pub fn get_simple_tokens<'a>(input: &str) -> Vec<Token> {
             }
 
             '/' => {
-                char_iter.next();   // Absorb first /
+                char_iter.next(); // Absorb first /
 
                 if char_iter.peek() == Some(&'/') {
-                    char_iter.next();   // Absorb second /
+                    char_iter.next(); // Absorb second /
 
                     let comment_token = get_single_comment(c, &mut char_iter);
                     simple_tokens.push(Token::Comment(comment_token));
-                }
-                else {
+                } else {
                     if char_iter.peek() == Some(&'*') {
-                        char_iter.next();   // Absorb *
+                        char_iter.next(); // Absorb *
 
                         let comment_token = get_block_comment(c, &mut char_iter);
                         simple_tokens.push(Token::Comment(comment_token));
-                    }
-                    else {
+                    } else {
                         simple_tokens.push(Token::Operator(c))
-                    }                    
+                    }
                 }
             }
 
@@ -323,6 +327,16 @@ pub mod tests {
             Some(&Token::Comment(" famous \n sentence ".to_string()))
         );
         assert_eq!(tokens.get(3), Some(&Token::Whitespace));
+        assert_eq!(tokens.get(4), Some(&Token::Symbol("INDEED".to_string())));
+    }
+
+    #[test]
+    fn get_rem_comment() {
+        let code = "hello REM famous \nindeed";
+
+        let tokens = get_simple_tokens(code);
+
+        assert_eq!(tokens.get(2), Some(&Token::Comment(" famous ".to_string())));
         assert_eq!(tokens.get(4), Some(&Token::Symbol("INDEED".to_string())));
     }
 
