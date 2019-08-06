@@ -14,7 +14,7 @@ pub enum Token {
     Unknown(char),
 }
 
-fn get_number<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) -> String {
+fn get_number<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
     let mut token = String::new();
 
     while let Some(&c) = char_iter.peek() {
@@ -27,11 +27,10 @@ fn get_number<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) ->
             _ => return token,
         }
     }
-
-    return token;
+    token
 }
 
-fn get_symbol<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) -> String {
+fn get_symbol<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
     let mut token = String::new();
 
     while let Some(&c) = char_iter.peek() {
@@ -50,10 +49,10 @@ fn get_symbol<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) ->
         }
     }
 
-    return token;
+    token
 }
 
-fn get_single_comment<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) -> String {
+fn get_single_comment<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
     let mut token = String::new();
 
     while let Some(&c) = char_iter.peek() {
@@ -67,10 +66,10 @@ fn get_single_comment<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekabl
         }
     }
 
-    return token;
+    token
 }
 
-fn get_block_comment<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) -> String {
+fn get_block_comment<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
     let mut token = String::new();
 
     while let Some(&c) = char_iter.peek() {
@@ -94,10 +93,10 @@ fn get_block_comment<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable
         }
     }
 
-    return token;
+    token
 }
 
-fn get_text_string<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) -> String {
+fn get_text_string<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
     let mut token = String::new();
     let mut quote_level = 0;
 
@@ -127,10 +126,10 @@ fn get_text_string<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T
         }
     }
 
-    return token;
+    token
 }
 
-pub fn get_simple_tokens<'a>(input: &str) -> Vec<Token> {
+pub fn get_simple_tokens(input: &str) -> Vec<Token> {
     let mut simple_tokens: Vec<Token> = vec![];
 
     let mut char_iter = input.chars().peekable();
@@ -138,10 +137,10 @@ pub fn get_simple_tokens<'a>(input: &str) -> Vec<Token> {
     while let Some(&c) = char_iter.peek() {
         match c {
             'A'...'Z' | 'a'...'z' | '#' | '$' | '%' | '_' => {
-                let symbol = get_symbol(c, &mut char_iter);
+                let symbol = get_symbol(&mut char_iter);
 
                 if symbol == "REM" {
-                    let comment_token = get_single_comment(c, &mut char_iter);
+                    let comment_token = get_single_comment(&mut char_iter);
                     simple_tokens.push(Token::Comment(comment_token));
                 } else {
                     simple_tokens.push(Token::Symbol(symbol));
@@ -149,7 +148,7 @@ pub fn get_simple_tokens<'a>(input: &str) -> Vec<Token> {
             }
 
             '0'...'9' | '.' => {
-                let number_token = get_number(c, &mut char_iter);
+                let number_token = get_number(&mut char_iter);
                 simple_tokens.push(Token::Number(number_token));
             }
 
@@ -159,17 +158,15 @@ pub fn get_simple_tokens<'a>(input: &str) -> Vec<Token> {
                 if char_iter.peek() == Some(&'/') {
                     char_iter.next(); // Absorb second /
 
-                    let comment_token = get_single_comment(c, &mut char_iter);
+                    let comment_token = get_single_comment(&mut char_iter);
+                    simple_tokens.push(Token::Comment(comment_token));
+                } else if char_iter.peek() == Some(&'*') {
+                    char_iter.next(); // Absorb *
+
+                    let comment_token = get_block_comment(&mut char_iter);
                     simple_tokens.push(Token::Comment(comment_token));
                 } else {
-                    if char_iter.peek() == Some(&'*') {
-                        char_iter.next(); // Absorb *
-
-                        let comment_token = get_block_comment(c, &mut char_iter);
-                        simple_tokens.push(Token::Comment(comment_token));
-                    } else {
-                        simple_tokens.push(Token::Operator(c))
-                    }
+                    simple_tokens.push(Token::Operator(c))
                 }
             }
 
@@ -191,12 +188,12 @@ pub fn get_simple_tokens<'a>(input: &str) -> Vec<Token> {
             '\'' => {
                 char_iter.next(); // Absorb '
 
-                let comment_token = get_single_comment(c, &mut char_iter);
+                let comment_token = get_single_comment(&mut char_iter);
                 simple_tokens.push(Token::Comment(comment_token));
             }
 
             '"' => {
-                let text_string = get_text_string(c, &mut char_iter);
+                let text_string = get_text_string(&mut char_iter);
                 simple_tokens.push(Token::TextString(text_string));
             }
 
@@ -227,7 +224,7 @@ pub fn get_simple_tokens<'a>(input: &str) -> Vec<Token> {
         }
     }
 
-    return simple_tokens;
+    simple_tokens
 }
 
 #[cfg(test)]
@@ -383,6 +380,15 @@ pub mod tests {
         let tokens = get_simple_tokens(code);
 
         assert_eq!(tokens.get(2), Some(&Token::EqualSign));
+    }
+
+    #[test]
+    fn get_unknown() {
+        let code = "this is ~";
+
+        let tokens = get_simple_tokens(code);
+
+        assert_eq!(tokens.get(4), Some(&Token::Unknown('~')));
     }
 
 }
