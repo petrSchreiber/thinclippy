@@ -14,13 +14,13 @@ pub enum Token {
     Unknown(char),
 }
 
-fn get_number<T: Iterator<Item = char>>(c: char, character_iterator: &mut Peekable<T>) -> String {
+fn get_number<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) -> String {
     let mut token = String::new();
 
-    while let Some(&c) = character_iterator.peek() {
+    while let Some(&c) = char_iter.peek() {
         match c {
             '0'...'9' | '.' => {
-                character_iterator.next();
+                char_iter.next();
                 token.push(c);
             }
 
@@ -31,18 +31,18 @@ fn get_number<T: Iterator<Item = char>>(c: char, character_iterator: &mut Peekab
     return token;
 }
 
-fn get_symbol<T: Iterator<Item = char>>(c: char, character_iterator: &mut Peekable<T>) -> String {
+fn get_symbol<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) -> String {
     let mut token = String::new();
 
-    while let Some(&c) = character_iterator.peek() {
+    while let Some(&c) = char_iter.peek() {
         match c {
             'A'...'Z' | '#' | '$' | '%' | '_' => {
-                character_iterator.next();
+                char_iter.next();
                 token.push(c);
             }
 
             'a'...'z' => {
-                character_iterator.next();
+                char_iter.next();
                 token.push(c.to_string().to_uppercase().chars().next().unwrap());
             }
 
@@ -53,20 +53,20 @@ fn get_symbol<T: Iterator<Item = char>>(c: char, character_iterator: &mut Peekab
     return token;
 }
 
-fn get_comment<T: Iterator<Item = char>>(c: char, character_iterator: &mut Peekable<T>) -> String {
+fn get_comment<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) -> String {
     let mut token = String::new();
 
-    while let Some(&c) = character_iterator.peek() {
+    while let Some(&c) = char_iter.peek() {
         match c {
             '\'' => {
-                character_iterator.next();
+                char_iter.next();
                 token.push(c);
             }
 
             '\r' | '\n' => return token,
 
             _ => {
-                character_iterator.next();
+                char_iter.next();
                 token.push(c);
             }
         }
@@ -75,27 +75,31 @@ fn get_comment<T: Iterator<Item = char>>(c: char, character_iterator: &mut Peeka
     return token;
 }
 
-fn get_text_string<T: Iterator<Item = char>>(
-    c: char,
-    character_iterator: &mut Peekable<T>,
-) -> String {
+fn get_text_string<T: Iterator<Item = char>>(c: char, char_iter: &mut Peekable<T>) -> String {
     let mut token = String::new();
     let mut quote_level = 0;
-    while let Some(&c) = character_iterator.peek() {
+
+    while let Some(&c) = char_iter.peek() {
         match c {
             '\"' => {
                 quote_level += 1;
 
-                if quote_level == 2 {
-                    return token;
-                }
-
-                character_iterator.next();
+                char_iter.next();
                 token.push(c);
+
+                if quote_level == 2 {
+                    if char_iter.peek() == Some(&'\"') {
+                        char_iter.next();
+                        token.push(c);
+                        quote_level -= 1;
+                    } else {
+                        return token;
+                    }
+                }
             }
 
             _ => {
-                character_iterator.next();
+                char_iter.next();
                 token.push(c);
             }
         }
@@ -106,69 +110,68 @@ fn get_text_string<T: Iterator<Item = char>>(
 
 pub fn get_simple_tokens<'a>(input: &str) -> Vec<Token> {
     let mut simple_tokens: Vec<Token> = vec![];
-    let mut token = String::new();
 
-    let mut character_iterator = input.chars().peekable();
+    let mut char_iter = input.chars().peekable();
 
-    while let Some(&c) = character_iterator.peek() {
+    while let Some(&c) = char_iter.peek() {
         match c {
             'A'...'Z' | 'a'...'z' | '#' | '$' | '%' | '_' => {
-                let text_item = get_symbol(c, &mut character_iterator);
+                let text_item = get_symbol(c, &mut char_iter);
                 simple_tokens.push(Token::Symbol(text_item));
             }
 
             '0'...'9' | '.' => {
-                let number_token = get_number(c, &mut character_iterator);
+                let number_token = get_number(c, &mut char_iter);
                 simple_tokens.push(Token::Number(number_token));
             }
 
             '+' | '*' | '/' | '-' => {
-                character_iterator.next();
+                char_iter.next();
                 simple_tokens.push(Token::Operator(c))
             }
 
             ' ' | '\t' => {
-                character_iterator.next();
+                char_iter.next();
                 simple_tokens.push(Token::Whitespace)
             }
 
             '(' | ')' => {
-                character_iterator.next();
+                char_iter.next();
                 simple_tokens.push(Token::Paren(c))
             }
 
             '\'' => {
-                let comment_token = get_comment(c, &mut character_iterator);
+                let comment_token = get_comment(c, &mut char_iter);
                 simple_tokens.push(Token::Comment(comment_token));
             }
 
             '"' => {
-                let text_string = get_comment(c, &mut character_iterator);
+                let text_string = get_text_string(c, &mut char_iter);
                 simple_tokens.push(Token::TextString(text_string));
             }
 
             '\r' => {
-                character_iterator.next();
+                char_iter.next();
                 simple_tokens.push(Token::EndOfLine);
 
                 // CRLF taken as one
-                if character_iterator.peek() == Some(&'\n') {
-                    character_iterator.next();
+                if char_iter.peek() == Some(&'\n') {
+                    char_iter.next();
                 }
             }
 
             '\n' => {
-                character_iterator.next();
+                char_iter.next();
                 simple_tokens.push(Token::EndOfLine)
             }
 
             '=' => {
-                character_iterator.next();
+                char_iter.next();
                 simple_tokens.push(Token::EqualSign)
             }
 
             _ => {
-                character_iterator.next();
+                char_iter.next();
                 simple_tokens.push(Token::Unknown(c))
             }
         }
@@ -268,6 +271,20 @@ pub mod tests {
         assert_eq!(
             tokens.get(4),
             Some(&Token::TextString("\"Ciao\"".to_string()))
+        );
+    }
+
+    #[test]
+    fn get_text_string_with_inner_quotes() {
+        let code = "hello = \"Ciao, dear \"\"bambino\"\"\"";
+
+        let tokens = get_simple_tokens(code);
+
+        assert_eq!(
+            tokens.get(4),
+            Some(&Token::TextString(
+                "\"Ciao, dear \"\"bambino\"\"\"".to_string()
+            ))
         );
     }
 
