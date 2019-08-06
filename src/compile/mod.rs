@@ -1,4 +1,5 @@
 use crate::thinbasic_script::{Code, IssueSummary};
+use crate::tokenizer;
 
 pub fn analysis_available(code: &mut Code) -> bool {
     let content = code.get_file_content().unwrap();

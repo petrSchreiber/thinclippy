@@ -3,6 +3,7 @@ use std::process::exit;
 
 mod compile;
 mod thinbasic_script;
+mod tokenizer;
 
 fn main() {
     println!("thinClippy - thinBASIC code analyzer, v0.1");
