@@ -1,7 +1,14 @@
 use std::iter::Peekable;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Token {
+pub struct TokenInfo {
+    pub token_type: TokenType,
+    pub line: u32,
+    pub pos: u32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TokenType {
     Whitespace,
     EndOfLine,
     Paren(char),
@@ -9,12 +16,12 @@ pub enum Token {
     Operator(char),
     Number(String),
     Symbol(String),
-    TextString(String),
+    Text(String),
     Comment(String),
     Unknown(char),
 }
 
-fn get_number<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
+fn get_number<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>, pos: &mut u32) -> String {
     let mut token = String::new();
 
     while let Some(&c) = char_iter.peek() {
@@ -22,6 +29,7 @@ fn get_number<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
             '0'...'9' | '.' => {
                 char_iter.next();
                 token.push(c);
+                *pos += 1;
             }
 
             _ => return token,
@@ -30,7 +38,24 @@ fn get_number<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
     token
 }
 
-fn get_symbol<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
+fn get_whitespace<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>, pos: &mut u32) -> String {
+    let mut token = String::new();
+
+    while let Some(&c) = char_iter.peek() {
+        match c {
+            ' ' | '\t' => {
+                char_iter.next();
+                token.push(c);
+                *pos += 1;
+            }
+
+            _ => return token,
+        }
+    }
+    token
+}
+
+fn get_symbol<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>, pos: &mut u32) -> String {
     let mut token = String::new();
 
     while let Some(&c) = char_iter.peek() {
@@ -38,11 +63,13 @@ fn get_symbol<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
             'A'...'Z' | '#' | '$' | '%' | '_' => {
                 char_iter.next();
                 token.push(c);
+                *pos += 1;
             }
 
             'a'...'z' => {
                 char_iter.next();
                 token.push(c.to_string().to_uppercase().chars().next().unwrap());
+                *pos += 1;
             }
 
             _ => return token,
@@ -52,16 +79,24 @@ fn get_symbol<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
     token
 }
 
-fn get_single_comment<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
+fn get_single_comment<T: Iterator<Item = char>>(
+    char_iter: &mut Peekable<T>,
+    pos: &mut u32,
+) -> String {
     let mut token = String::new();
 
     while let Some(&c) = char_iter.peek() {
         match c {
-            '\r' | '\n' => return token,
+            '\n' => return token,
+
+            '\r' => {
+                char_iter.next();
+            }
 
             _ => {
                 char_iter.next();
                 token.push(c);
+                *pos += 1;
             }
         }
     }
@@ -69,25 +104,45 @@ fn get_single_comment<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> 
     token
 }
 
-fn get_block_comment<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
+fn get_block_comment<T: Iterator<Item = char>>(
+    char_iter: &mut Peekable<T>,
+    line_no: &mut u32,
+    pos: &mut u32,
+) -> String {
     let mut token = String::new();
 
     while let Some(&c) = char_iter.peek() {
         match c {
             '*' => {
                 char_iter.next();
+                *pos += 1;
 
                 if char_iter.peek() == Some(&'/') {
                     // Detecting ending */
                     char_iter.next();
+                    *pos += 1;
+
                     return token;
                 } else {
+                    *pos += 1;
                     token.push(c);
                 }
             }
 
+            '\r' => {
+                char_iter.next();
+            }
+
+            '\n' => {
+                char_iter.next();
+                *line_no += 1;
+                *pos = 0;
+                token.push(c);
+            }
+
             _ => {
                 char_iter.next();
+                *pos += 1;
                 token.push(c);
             }
         }
@@ -96,7 +151,11 @@ fn get_block_comment<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> S
     token
 }
 
-fn get_text_string<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> String {
+fn get_text<T: Iterator<Item = char>>(
+    char_iter: &mut Peekable<T>,
+    line_no: &mut u32,
+    pos: &mut u32,
+) -> String {
     let mut token = String::new();
     let mut quote_level = 0;
 
@@ -106,11 +165,13 @@ fn get_text_string<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> Str
                 quote_level += 1;
 
                 char_iter.next();
+                *pos += 1;
                 token.push(c);
 
                 if quote_level == 2 {
                     if char_iter.peek() == Some(&'\"') {
                         char_iter.next();
+                        *pos += 1;
                         token.push(c);
                         quote_level -= 1;
                     } else {
@@ -119,8 +180,20 @@ fn get_text_string<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> Str
                 }
             }
 
+            '\r' => {
+                char_iter.next();
+            }
+
+            '\n' => {
+                char_iter.next();
+                *line_no += 1;
+                *pos = 0;
+                token.push(c);
+            }
+
             _ => {
                 char_iter.next();
+                *pos += 1;
                 token.push(c);
             }
         }
@@ -129,27 +202,44 @@ fn get_text_string<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) -> Str
     token
 }
 
-pub fn get_simple_tokens(input: &str) -> Vec<Token> {
-    let mut simple_tokens: Vec<Token> = vec![];
+pub fn get_simple_tokens(input: &str) -> Vec<TokenInfo> {
+    let mut simple_tokens: Vec<TokenInfo> = vec![];
 
     let mut char_iter = input.chars().peekable();
 
+    let mut line_no = 1;
+    let mut pos_no = 0;
+    let mut start_pos_no;
+
     while let Some(&c) = char_iter.peek() {
+        start_pos_no = pos_no + 1;
         match c {
             'A'...'Z' | 'a'...'z' | '#' | '$' | '%' | '_' => {
-                let symbol = get_symbol(&mut char_iter);
+                let symbol = get_symbol(&mut char_iter, &mut pos_no);
 
                 if symbol == "REM" {
-                    let comment_token = get_single_comment(&mut char_iter);
-                    simple_tokens.push(Token::Comment(comment_token));
+                    let comment_token = get_single_comment(&mut char_iter, &mut pos_no);
+                    simple_tokens.push(TokenInfo {
+                        token_type: TokenType::Comment(comment_token),
+                        line: line_no,
+                        pos: start_pos_no,
+                    });
                 } else {
-                    simple_tokens.push(Token::Symbol(symbol));
+                    simple_tokens.push(TokenInfo {
+                        token_type: TokenType::Symbol(symbol),
+                        line: line_no,
+                        pos: start_pos_no,
+                    });
                 }
             }
 
             '0'...'9' | '.' => {
-                let number_token = get_number(&mut char_iter);
-                simple_tokens.push(Token::Number(number_token));
+                let number_token = get_number(&mut char_iter, &mut pos_no);
+                simple_tokens.push(TokenInfo {
+                    token_type: TokenType::Number(number_token),
+                    line: line_no,
+                    pos: start_pos_no,
+                });
             }
 
             '/' => {
@@ -158,68 +248,109 @@ pub fn get_simple_tokens(input: &str) -> Vec<Token> {
                 if char_iter.peek() == Some(&'/') {
                     char_iter.next(); // Absorb second /
 
-                    let comment_token = get_single_comment(&mut char_iter);
-                    simple_tokens.push(Token::Comment(comment_token));
+                    let comment_token = get_single_comment(&mut char_iter, &mut pos_no);
+                    simple_tokens.push(TokenInfo {
+                        token_type: TokenType::Comment(comment_token),
+                        line: line_no,
+                        pos: start_pos_no,
+                    });
                 } else if char_iter.peek() == Some(&'*') {
                     char_iter.next(); // Absorb *
 
-                    let comment_token = get_block_comment(&mut char_iter);
-                    simple_tokens.push(Token::Comment(comment_token));
+                    let comment_token =
+                        get_block_comment(&mut char_iter, &mut line_no, &mut pos_no);
+                    simple_tokens.push(TokenInfo {
+                        token_type: TokenType::Comment(comment_token),
+                        line: line_no,
+                        pos: start_pos_no,
+                    });
                 } else {
-                    simple_tokens.push(Token::Operator(c))
+                    simple_tokens.push(TokenInfo {
+                        token_type: TokenType::Operator(c),
+                        line: line_no,
+                        pos: start_pos_no,
+                    });
                 }
             }
 
             '+' | '*' | '-' => {
                 char_iter.next();
-                simple_tokens.push(Token::Operator(c))
+                simple_tokens.push(TokenInfo {
+                    token_type: TokenType::Operator(c),
+                    line: line_no,
+                    pos: start_pos_no,
+                });
             }
 
             ' ' | '\t' => {
-                char_iter.next();
-                simple_tokens.push(Token::Whitespace)
+                let _whitespace = get_whitespace(&mut char_iter, &mut pos_no);
+                simple_tokens.push(TokenInfo {
+                    token_type: TokenType::Whitespace,
+                    line: line_no,
+                    pos: start_pos_no,
+                });
             }
 
             '(' | ')' => {
                 char_iter.next();
-                simple_tokens.push(Token::Paren(c))
+                simple_tokens.push(TokenInfo {
+                    token_type: TokenType::Paren(c),
+                    line: line_no,
+                    pos: start_pos_no,
+                });
             }
 
             '\'' => {
                 char_iter.next(); // Absorb '
 
-                let comment_token = get_single_comment(&mut char_iter);
-                simple_tokens.push(Token::Comment(comment_token));
+                let comment_token = get_single_comment(&mut char_iter, &mut pos_no);
+                simple_tokens.push(TokenInfo {
+                    token_type: TokenType::Comment(comment_token),
+                    line: line_no,
+                    pos: start_pos_no,
+                });
             }
 
             '"' => {
-                let text_string = get_text_string(&mut char_iter);
-                simple_tokens.push(Token::TextString(text_string));
+                let text_string = get_text(&mut char_iter, &mut line_no, &mut pos_no);
+                simple_tokens.push(TokenInfo {
+                    token_type: TokenType::Text(text_string),
+                    line: line_no,
+                    pos: start_pos_no,
+                });
             }
 
             '\r' => {
                 char_iter.next();
-                simple_tokens.push(Token::EndOfLine);
-
-                // CRLF taken as one
-                if char_iter.peek() == Some(&'\n') {
-                    char_iter.next();
-                }
             }
 
             '\n' => {
                 char_iter.next();
-                simple_tokens.push(Token::EndOfLine)
+                line_no += 1;
+                pos_no = 0;
+                simple_tokens.push(TokenInfo {
+                    token_type: TokenType::EndOfLine,
+                    line: line_no,
+                    pos: start_pos_no,
+                });
             }
 
             '=' => {
                 char_iter.next();
-                simple_tokens.push(Token::EqualSign)
+                simple_tokens.push(TokenInfo {
+                    token_type: TokenType::EqualSign,
+                    line: line_no,
+                    pos: start_pos_no,
+                });
             }
 
             _ => {
                 char_iter.next();
-                simple_tokens.push(Token::Unknown(c))
+                simple_tokens.push(TokenInfo {
+                    token_type: TokenType::Unknown(c),
+                    line: line_no,
+                    pos: start_pos_no,
+                });
             }
         }
     }
@@ -231,7 +362,7 @@ pub fn get_simple_tokens(input: &str) -> Vec<Token> {
 pub mod tests {
 
     use super::get_simple_tokens;
-    use super::Token;
+    use super::TokenType;
 
     #[test]
     fn get_number_works() {
@@ -239,7 +370,10 @@ pub mod tests {
 
         let tokens = get_simple_tokens(code);
 
-        assert_eq!(tokens.get(0), Some(&Token::Number("1234".to_string())));
+        assert_eq!(
+            tokens.get(0).unwrap().token_type,
+            TokenType::Number("1234".to_string())
+        );
     }
 
     #[test]
@@ -249,8 +383,8 @@ pub mod tests {
         let tokens = get_simple_tokens(code);
 
         assert_eq!(
-            tokens.get(0),
-            Some(&Token::Symbol("%CIAO_MY_FRIEND$".to_string()))
+            tokens.get(0).unwrap().token_type,
+            TokenType::Symbol("%CIAO_MY_FRIEND$".to_string())
         );
     }
 
@@ -260,10 +394,10 @@ pub mod tests {
 
         let tokens = get_simple_tokens(code);
 
-        assert_eq!(tokens.get(2), Some(&Token::Operator('+')));
-        assert_eq!(tokens.get(6), Some(&Token::Operator('-')));
-        assert_eq!(tokens.get(10), Some(&Token::Operator('*')));
-        assert_eq!(tokens.get(14), Some(&Token::Operator('/')));
+        assert_eq!(tokens.get(2).unwrap().token_type, TokenType::Operator('+'));
+        assert_eq!(tokens.get(6).unwrap().token_type, TokenType::Operator('-'));
+        assert_eq!(tokens.get(10).unwrap().token_type, TokenType::Operator('*'));
+        assert_eq!(tokens.get(14).unwrap().token_type, TokenType::Operator('/'));
     }
 
     #[test]
@@ -272,7 +406,7 @@ pub mod tests {
 
         let tokens = get_simple_tokens(code);
 
-        assert_eq!(tokens.get(1), Some(&Token::Whitespace));
+        assert_eq!(tokens.get(1).unwrap().token_type, TokenType::Whitespace);
     }
 
     #[test]
@@ -281,8 +415,8 @@ pub mod tests {
 
         let tokens = get_simple_tokens(code);
 
-        assert_eq!(tokens.get(0), Some(&Token::Paren('(')));
-        assert_eq!(tokens.get(2), Some(&Token::Paren(')')));
+        assert_eq!(tokens.get(0).unwrap().token_type, TokenType::Paren('('));
+        assert_eq!(tokens.get(2).unwrap().token_type, TokenType::Paren(')'));
     }
 
     #[test]
@@ -292,11 +426,14 @@ pub mod tests {
         let tokens = get_simple_tokens(code);
 
         assert_eq!(
-            tokens.get(4),
-            Some(&Token::Comment(" famous sentence".to_string()))
+            tokens.get(4).unwrap().token_type,
+            TokenType::Comment(" famous sentence".to_string())
         );
-        assert_eq!(tokens.get(5), Some(&Token::EndOfLine));
-        assert_eq!(tokens.get(6), Some(&Token::Symbol("INDEED".to_string())));
+        assert_eq!(tokens.get(5).unwrap().token_type, TokenType::EndOfLine);
+        assert_eq!(
+            tokens.get(6).unwrap().token_type,
+            TokenType::Symbol("INDEED".to_string())
+        );
     }
 
     #[test]
@@ -306,11 +443,14 @@ pub mod tests {
         let tokens = get_simple_tokens(code);
 
         assert_eq!(
-            tokens.get(4),
-            Some(&Token::Comment(" famous sentence".to_string()))
+            tokens.get(4).unwrap().token_type,
+            TokenType::Comment(" famous sentence".to_string())
         );
-        assert_eq!(tokens.get(5), Some(&Token::EndOfLine));
-        assert_eq!(tokens.get(6), Some(&Token::Symbol("INDEED".to_string())));
+        assert_eq!(tokens.get(5).unwrap().token_type, TokenType::EndOfLine);
+        assert_eq!(
+            tokens.get(6).unwrap().token_type,
+            TokenType::Symbol("INDEED".to_string())
+        );
     }
 
     #[test]
@@ -320,11 +460,14 @@ pub mod tests {
         let tokens = get_simple_tokens(code);
 
         assert_eq!(
-            tokens.get(2),
-            Some(&Token::Comment(" famous \n sentence ".to_string()))
+            tokens.get(2).unwrap().token_type,
+            TokenType::Comment(" famous \n sentence ".to_string())
         );
-        assert_eq!(tokens.get(3), Some(&Token::Whitespace));
-        assert_eq!(tokens.get(4), Some(&Token::Symbol("INDEED".to_string())));
+        assert_eq!(tokens.get(3).unwrap().token_type, TokenType::Whitespace);
+        assert_eq!(
+            tokens.get(4).unwrap().token_type,
+            TokenType::Symbol("INDEED".to_string())
+        );
     }
 
     #[test]
@@ -333,8 +476,14 @@ pub mod tests {
 
         let tokens = get_simple_tokens(code);
 
-        assert_eq!(tokens.get(2), Some(&Token::Comment(" famous ".to_string())));
-        assert_eq!(tokens.get(4), Some(&Token::Symbol("INDEED".to_string())));
+        assert_eq!(
+            tokens.get(2).unwrap().token_type,
+            TokenType::Comment(" famous ".to_string())
+        );
+        assert_eq!(
+            tokens.get(4).unwrap().token_type,
+            TokenType::Symbol("INDEED".to_string())
+        );
     }
 
     #[test]
@@ -343,19 +492,19 @@ pub mod tests {
 
         let tokens = get_simple_tokens(code);
 
-        assert_eq!(tokens.get(1), Some(&Token::EndOfLine));
-        assert_eq!(tokens.get(3), Some(&Token::EndOfLine));
+        assert_eq!(tokens.get(1).unwrap().token_type, TokenType::EndOfLine);
+        assert_eq!(tokens.get(3).unwrap().token_type, TokenType::EndOfLine);
     }
 
     #[test]
-    fn get_text_string() {
+    fn get_text() {
         let code = "hello = \"Ciao\"";
 
         let tokens = get_simple_tokens(code);
 
         assert_eq!(
-            tokens.get(4),
-            Some(&Token::TextString("\"Ciao\"".to_string()))
+            tokens.get(4).unwrap().token_type,
+            TokenType::Text("\"Ciao\"".to_string())
         );
     }
 
@@ -366,10 +515,8 @@ pub mod tests {
         let tokens = get_simple_tokens(code);
 
         assert_eq!(
-            tokens.get(4),
-            Some(&Token::TextString(
-                "\"Ciao, dear \"\"bambino\"\"\"".to_string()
-            ))
+            tokens.get(4).unwrap().token_type,
+            TokenType::Text("\"Ciao, dear \"\"bambino\"\"\"".to_string())
         );
     }
 
@@ -379,7 +526,7 @@ pub mod tests {
 
         let tokens = get_simple_tokens(code);
 
-        assert_eq!(tokens.get(2), Some(&Token::EqualSign));
+        assert_eq!(tokens.get(2).unwrap().token_type, TokenType::EqualSign);
     }
 
     #[test]
@@ -388,7 +535,47 @@ pub mod tests {
 
         let tokens = get_simple_tokens(code);
 
-        assert_eq!(tokens.get(4), Some(&Token::Unknown('~')));
+        assert_eq!(tokens.get(4).unwrap().token_type, TokenType::Unknown('~'));
+    }
+
+    #[test]
+    fn line_location() {
+        let code = "a\r\nb\nc";
+
+        let tokens = get_simple_tokens(code);
+
+        assert_eq!(tokens.get(0).unwrap().line, 1u32);
+        assert_eq!(tokens.get(2).unwrap().line, 2u32);
+        assert_eq!(tokens.get(4).unwrap().line, 3u32);
+    }
+
+    #[test]
+    fn pos_location() {
+        let code = " well\r\n  this\n   works";
+
+        let tokens = get_simple_tokens(code);
+
+        assert_eq!(tokens.get(0).unwrap().token_type, TokenType::Whitespace);
+        assert_eq!(
+            tokens.get(1).unwrap().token_type,
+            TokenType::Symbol("WELL".to_string())
+        );
+        assert_eq!(tokens.get(2).unwrap().token_type, TokenType::EndOfLine);
+        assert_eq!(tokens.get(3).unwrap().token_type, TokenType::Whitespace);
+        assert_eq!(
+            tokens.get(4).unwrap().token_type,
+            TokenType::Symbol("THIS".to_string())
+        );
+        assert_eq!(tokens.get(5).unwrap().token_type, TokenType::EndOfLine);
+        assert_eq!(tokens.get(6).unwrap().token_type, TokenType::Whitespace);
+        assert_eq!(
+            tokens.get(7).unwrap().token_type,
+            TokenType::Symbol("WORKS".to_string())
+        );
+
+        assert_eq!(tokens.get(1).unwrap().pos, 2u32);
+        assert_eq!(tokens.get(4).unwrap().pos, 3u32);
+        assert_eq!(tokens.get(7).unwrap().pos, 4u32);
     }
 
 }
