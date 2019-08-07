@@ -28,7 +28,7 @@ impl fmt::Display for IssueSummary {
         fmt.write_str(", line: ")?;
         fmt.write_str(&self.line.to_string()[..])?;
 
-        fmt.write_str(", char: ")?;
+        fmt.write_str(", pos: ")?;
         fmt.write_str(&self.character.to_string()[..])?;
 
         fmt.write_str(" in ")?;

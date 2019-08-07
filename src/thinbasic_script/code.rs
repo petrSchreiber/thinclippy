@@ -1,3 +1,5 @@
+use crate::tokenizer;
+use crate::tokenizer::TokenInfo;
 use std::fs;
 
 pub struct Code {
@@ -28,5 +30,11 @@ impl Code {
         }
 
         Ok(&self.file_content)
+    }
+
+    pub fn get_tokens(&mut self) -> Vec<TokenInfo> {
+        let content = self.get_file_content().unwrap();
+
+        tokenizer::get_tokens(content)
     }
 }

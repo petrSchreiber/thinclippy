@@ -2,56 +2,51 @@ use crate::thinbasic_script::{Code, IssueSummary};
 use crate::tokenizer;
 
 pub fn analysis_available(code: &mut Code) -> bool {
-    let content = code.get_file_content().unwrap();
+    let tokens = code.get_tokens();
 
-    content.contains("#COMPILE") || content.contains("#ENDCOMPILE")
+    for token in tokens {
+        if token.token_type == tokenizer::TokenType::Symbol("#COMPILED".to_string()) {
+            return true;
+        }
+
+        if token.token_type == tokenizer::TokenType::Symbol("#ENDCOMPILED".to_string()) {
+            return true;
+        }
+    }
+
+    false
 }
 
 pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
-    let content = code.get_file_content().unwrap();
-
-    let lines = content.lines();
+    let tokens = code.get_tokens();
 
     let mut opened_fb_code = false;
     let mut num_opened = 0;
     let mut num_closed = 0;
     let mut last_opened_fb_code_line = 0;
 
-    let mut line_number = 0;
-
-    for line in lines {
-        let mut tokens = line.split_whitespace();
-        let first_token_peek = tokens.next();
-        let first_token;
-
-        match first_token_peek {
-            None => continue,
-            Some(v) => first_token = v,
-        };
-
-        line_number += 1;
-
-        if first_token == "#COMPILE" {
+    for token in tokens {
+        if token.token_type == tokenizer::TokenType::Symbol("#COMPILED".to_string()) {
             if !opened_fb_code {
                 opened_fb_code = true;
                 num_opened += 1;
-                last_opened_fb_code_line = line_number;
+                last_opened_fb_code_line = token.line;
             } else {
                 return Err(IssueSummary::new(
                     &code.main_file_name[..],
-                    line_number,
-                    1,
+                    token.line,
+                    token.pos,
                     "Nested #COMPILE not supported",
                 ));
             }
         }
 
-        if first_token == "#ENDCOMPILE" {
+        if token.token_type == tokenizer::TokenType::Symbol("#ENDCOMPILED".to_string()) {
             if !opened_fb_code {
                 return Err(IssueSummary::new(
                     &code.main_file_name[..],
-                    line_number,
-                    1,
+                    token.line,
+                    token.pos,
                     "#ENDCOMPILE without #COMPILE",
                 ));
             } else {

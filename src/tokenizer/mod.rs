@@ -202,7 +202,7 @@ fn get_text<T: Iterator<Item = char>>(
     token
 }
 
-pub fn get_simple_tokens(input: &str) -> Vec<TokenInfo> {
+pub fn get_tokens(input: &str) -> Vec<TokenInfo> {
     let mut simple_tokens: Vec<TokenInfo> = vec![];
 
     let mut char_iter = input.chars().peekable();
@@ -361,14 +361,14 @@ pub fn get_simple_tokens(input: &str) -> Vec<TokenInfo> {
 #[cfg(test)]
 pub mod tests {
 
-    use super::get_simple_tokens;
+    use super::get_tokens;
     use super::TokenType;
 
     #[test]
     fn get_number_works() {
         let code = "1234";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(
             tokens.get(0).unwrap().token_type,
@@ -380,7 +380,7 @@ pub mod tests {
     fn get_symbol_works() {
         let code = "%Ciao_my_FRIEND$";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(
             tokens.get(0).unwrap().token_type,
@@ -392,7 +392,7 @@ pub mod tests {
     fn get_operator_works() {
         let code = "a + b - c * d / e";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(tokens.get(2).unwrap().token_type, TokenType::Operator('+'));
         assert_eq!(tokens.get(6).unwrap().token_type, TokenType::Operator('-'));
@@ -404,7 +404,7 @@ pub mod tests {
     fn get_whitespace_works() {
         let code = "A    \tB";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(tokens.get(1).unwrap().token_type, TokenType::Whitespace);
     }
@@ -413,7 +413,7 @@ pub mod tests {
     fn get_paren_works() {
         let code = "(1)";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(tokens.get(0).unwrap().token_type, TokenType::Paren('('));
         assert_eq!(tokens.get(2).unwrap().token_type, TokenType::Paren(')'));
@@ -423,7 +423,7 @@ pub mod tests {
     fn get_apostrophe_comment() {
         let code = "hello world ' famous sentence\nindeed";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(
             tokens.get(4).unwrap().token_type,
@@ -440,7 +440,7 @@ pub mod tests {
     fn get_c_comment() {
         let code = "hello world // famous sentence\nindeed";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(
             tokens.get(4).unwrap().token_type,
@@ -457,7 +457,7 @@ pub mod tests {
     fn get_block_comment() {
         let code = "hello /* famous \n sentence */ indeed";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(
             tokens.get(2).unwrap().token_type,
@@ -474,7 +474,7 @@ pub mod tests {
     fn get_rem_comment() {
         let code = "hello REM famous \nindeed";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(
             tokens.get(2).unwrap().token_type,
@@ -490,7 +490,7 @@ pub mod tests {
     fn get_end_of_line() {
         let code = "A\nB\r\nC";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(tokens.get(1).unwrap().token_type, TokenType::EndOfLine);
         assert_eq!(tokens.get(3).unwrap().token_type, TokenType::EndOfLine);
@@ -500,7 +500,7 @@ pub mod tests {
     fn get_text() {
         let code = "hello = \"Ciao\"";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(
             tokens.get(4).unwrap().token_type,
@@ -512,7 +512,7 @@ pub mod tests {
     fn get_text_string_with_inner_quotes() {
         let code = "hello = \"Ciao, dear \"\"bambino\"\"\"";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(
             tokens.get(4).unwrap().token_type,
@@ -524,7 +524,7 @@ pub mod tests {
     fn get_equal_sign() {
         let code = "numero = 1";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(tokens.get(2).unwrap().token_type, TokenType::EqualSign);
     }
@@ -533,7 +533,7 @@ pub mod tests {
     fn get_unknown() {
         let code = "this is ~";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(tokens.get(4).unwrap().token_type, TokenType::Unknown('~'));
     }
@@ -542,7 +542,7 @@ pub mod tests {
     fn line_location() {
         let code = "a\r\nb\nc";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(tokens.get(0).unwrap().line, 1u32);
         assert_eq!(tokens.get(2).unwrap().line, 2u32);
@@ -553,7 +553,7 @@ pub mod tests {
     fn pos_location() {
         let code = " well\r\n  this\n   works";
 
-        let tokens = get_simple_tokens(code);
+        let tokens = get_tokens(code);
 
         assert_eq!(tokens.get(0).unwrap().token_type, TokenType::Whitespace);
         assert_eq!(
