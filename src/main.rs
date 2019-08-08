@@ -9,7 +9,7 @@ mod thinbasic_script;
 mod tokenizer;
 
 fn main() {
-    if ansi_term::enable_ansi_support().is_err() {
+    if cfg!(windows) && ansi_term::enable_ansi_support().is_err() {
         colored::control::set_override(false);
     }
 
