@@ -660,12 +660,39 @@ pub mod tests {
 
 }
 
-pub fn parse_whitespace<T: Iterator<Item = TokenInfo>>(token_iter: &mut Peekable<T>) -> bool {
+pub fn parse_whitespace(
+    token_iter: &mut std::iter::Peekable<std::slice::Iter<'_, TokenInfo>>,
+) -> bool {
     let next_token = token_iter.peek();
     if next_token.unwrap().token_type == TokenType::Whitespace {
         token_iter.next();
-        true }
-        else {
-            false
-        }
+        true
+    } else {
+        false
+    }
+}
+
+pub fn parse_symbol(
+    token_iter: &mut std::iter::Peekable<std::slice::Iter<'_, TokenInfo>>,
+    symbol: &str,
+) -> bool {
+    let next_token = token_iter.peek();
+    if next_token.unwrap().token_type == TokenType::Symbol(symbol.to_string()) {
+        token_iter.next();
+        true
+    } else {
+        false
+    }
+}
+
+pub fn parse_equal_sign(
+    token_iter: &mut std::iter::Peekable<std::slice::Iter<'_, TokenInfo>>,
+) -> bool {
+    let next_token = token_iter.peek();
+    if next_token.unwrap().token_type == TokenType::EqualSign {
+        token_iter.next();
+        true
+    } else {
+        false
+    }
 }

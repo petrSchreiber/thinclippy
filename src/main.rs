@@ -47,30 +47,27 @@ fn main() {
     let mut issues_found: i32 = 0;
 
     if rules::compiled::analysis_available(&mut code) {
-        let issues = rules::compiled::pairs_match(&mut code);
+        let issues = rules::compiled::section_definition(&mut code);
 
         for v in issues {
-//                if issues_found > 0 {
-                    print!("\n{}", "-".repeat(80));
-                    println!();
-                //}
-
-                let lines = &mut code.get_file_content().unwrap().lines();
-
-                issues_found += 1;
-
-                print!("Line {:>5} - ", v.line);
-
-                print_color(lines.nth((v.line - 1) as usize).unwrap(), Color::White);
-                println!();
-
-                print!("{}", " ".repeat((v.pos + 12) as usize));
-                println!("^");
-                print!("{}", " ".repeat((13) as usize));
-                print_color(&v.summary, Color::Red);
-            }
+            print!("\n{}", "-".repeat(80));
             println!();
-        
+
+            let lines = &mut code.get_file_content().unwrap().lines();
+
+            issues_found += 1;
+
+            print!("Line {:>5} - ", v.line);
+
+            print_color(lines.nth((v.line - 1) as usize).unwrap(), Color::White);
+            println!();
+
+            print!("{}", " ".repeat((v.pos + 12) as usize));
+            println!("^");
+            print!("{}", " ".repeat((13) as usize));
+            print_color(&v.summary, Color::Red);
+        }
+        println!();
     } else {
         print_color("[i] ", Color::Green);
         println!("No violations against #compile")
