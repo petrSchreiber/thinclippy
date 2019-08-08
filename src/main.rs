@@ -4,7 +4,7 @@ use std::process::exit;
 
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-mod compile;
+mod compiled;
 mod thinbasic_script;
 mod tokenizer;
 
@@ -28,31 +28,43 @@ fn main() {
     }
 
     let main_file_name = (&args[1]).to_string();
-    println!("In {}:\n", main_file_name);
 
-    let mut code = match thinbasic_script::Code::new(main_file_name) {
+    let mut code = match thinbasic_script::Code::new(&main_file_name) {
         Ok(c) => c,
         Err(e) => {
-            print_color("error: ", Color::Red);
+            print_color("input error: ", Color::Red);
             println!("{}", e);
             exit(1)
         }
     };
 
+    println!("In {}:\n", main_file_name);    
+
     let mut issues_found: i32 = 0;
 
-    if compile::analysis_available(&mut code) {
-        match compile::pairs_match(&mut code) {
+    if compiled::analysis_available(&mut code) {
+
+        match compiled::pairs_match(&mut code) {
             Ok(()) => (),
             Err(v) => {
+                let lines = &mut code.get_file_content().unwrap().lines();
+
                 issues_found += 1;
-                print!("Line {:>2}:{:>2} - ", v.line, v.pos);
-                print_color(&v.summary, Color::Red);
+                
+                print!("Line {:>5} - ", v.line);
+
+                print_color(lines.nth((v.line-1) as usize).unwrap(), Color::White);
                 println!();
+
+                print!("{}", " ".repeat((v.pos+12) as usize));
+                println!("^");
+                print!("{}", " ".repeat((13) as usize));
+                print_color(&v.summary, Color::Red);                
             }
         };
     } else {
-        println!("No #compile section, skipping part of analysis...")
+        print_color("[i] ", Color::Green);
+        println!("No violations against #compile")
     }
 
     println!("\n----------------------------------------");

@@ -14,11 +14,13 @@ pub enum TokenType {
     Paren(char),
     EqualSign,
     Operator(char),
+    Comparator(String),
     Number(String),
     Symbol(String),
     Text(String),
     Comment(String),
     Unknown(char),
+    Comma
 }
 
 fn get_number<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>, pos: &mut u32) -> String {
@@ -27,6 +29,24 @@ fn get_number<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>, pos: &mut u
     while let Some(&c) = char_iter.peek() {
         match c {
             '0'...'9' | '.' => {
+                char_iter.next();
+                token.push(c);
+                *pos += 1;
+            }
+
+            _ => return token,
+        }
+    }
+    token
+}
+
+
+fn get_comparator<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>, pos: &mut u32) -> String {
+    let mut token = String::new();
+
+    while let Some(&c) = char_iter.peek() {
+        match c {
+            '<' | '>' | '=' => {
                 char_iter.next();
                 token.push(c);
                 *pos += 1;
@@ -230,6 +250,7 @@ pub fn get_tokens(input: &str) -> Vec<TokenInfo> {
                         line: line_no,
                         pos: start_pos_no,
                     });
+
                 }
             }
 
@@ -241,6 +262,15 @@ pub fn get_tokens(input: &str) -> Vec<TokenInfo> {
                     pos: start_pos_no,
                 });
             }
+
+            '<' | '>' => {
+                let comparator_token = get_comparator(&mut char_iter, &mut pos_no);
+                simple_tokens.push(TokenInfo {
+                    token_type: TokenType::Comparator(comparator_token),
+                    line: line_no,
+                    pos: start_pos_no,
+                });
+            }            
 
             '/' => {
                 char_iter.next(); // Absorb first /
@@ -273,7 +303,7 @@ pub fn get_tokens(input: &str) -> Vec<TokenInfo> {
                 }
             }
 
-            '+' | '*' | '-' => {
+            '+' | '*' | '-' | '&' => {
                 char_iter.next();
                 simple_tokens.push(TokenInfo {
                     token_type: TokenType::Operator(c),
@@ -344,6 +374,20 @@ pub fn get_tokens(input: &str) -> Vec<TokenInfo> {
                 });
             }
 
+            ',' => {
+                char_iter.next();
+                simple_tokens.push(TokenInfo {
+                    token_type: TokenType::Comma,
+                    line: line_no,
+                    pos: start_pos_no,
+                });
+            }            
+
+            '\u{feff}' => { // Just BOM
+                char_iter.next();
+                pos_no += 1;
+            }
+
             _ => {
                 char_iter.next();
                 simple_tokens.push(TokenInfo {
@@ -390,7 +434,7 @@ pub mod tests {
 
     #[test]
     fn get_operator_works() {
-        let code = "a + b - c * d / e";
+        let code = "a + b - c * d / e & f";
 
         let tokens = get_tokens(code);
 
@@ -398,6 +442,7 @@ pub mod tests {
         assert_eq!(tokens.get(6).unwrap().token_type, TokenType::Operator('-'));
         assert_eq!(tokens.get(10).unwrap().token_type, TokenType::Operator('*'));
         assert_eq!(tokens.get(14).unwrap().token_type, TokenType::Operator('/'));
+        assert_eq!(tokens.get(18).unwrap().token_type, TokenType::Operator('&'));
     }
 
     #[test]
@@ -417,6 +462,16 @@ pub mod tests {
 
         assert_eq!(tokens.get(0).unwrap().token_type, TokenType::Paren('('));
         assert_eq!(tokens.get(2).unwrap().token_type, TokenType::Paren(')'));
+    }
+
+    #[test]
+    fn get_comma_works() {
+        let code = "a,b,c";
+
+        let tokens = get_tokens(code);
+
+        assert_eq!(tokens.get(1).unwrap().token_type, TokenType::Comma);
+        assert_eq!(tokens.get(3).unwrap().token_type, TokenType::Comma);
     }
 
     #[test]
@@ -528,6 +583,18 @@ pub mod tests {
 
         assert_eq!(tokens.get(2).unwrap().token_type, TokenType::EqualSign);
     }
+
+    #[test]
+    fn get_comparator() {
+        let code = "a>=b,c<=d,e<f,g>h";
+
+        let tokens = get_tokens(code);
+
+        assert_eq!(tokens.get(1).unwrap().token_type, TokenType::Comparator(">=".to_string()));
+        assert_eq!(tokens.get(5).unwrap().token_type, TokenType::Comparator("<=".to_string()));
+        assert_eq!(tokens.get(9).unwrap().token_type, TokenType::Comparator("<".to_string()));
+        assert_eq!(tokens.get(13).unwrap().token_type, TokenType::Comparator(">".to_string()));
+    }    
 
     #[test]
     fn get_unknown() {
