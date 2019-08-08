@@ -18,13 +18,17 @@ pub fn analysis_available(code: &mut Code) -> bool {
     false
 }
 
-pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
+pub fn pairs_match(code: &mut Code) -> Vec<IssueSummary> {
+    let mut issues_found: Vec<IssueSummary> = vec![];
+
     let tokens = code.get_tokens();
     let mut token_iter = tokens.iter().peekable();
 
-    let mut opened_compiled = false;
+    let mut in_compiled_block = false;
+
     let mut num_opened = 0;
     let mut num_closed = 0;
+
     let mut last_opened_compile_token_line = 0;
     let mut last_opened_compile_token_pos = 0;
 
@@ -38,13 +42,16 @@ pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
 
                 if kind == &compiled_str {
                     // Nesting check
-                    if !opened_compiled {
-                        opened_compiled = true;
+                    if !in_compiled_block {
+
+                        in_compiled_block = true;
                         num_opened += 1;
+
                         last_opened_compile_token_line = token.line;
                         last_opened_compile_token_pos = token.pos;
 
                         // Looking for parameters
+                        //if parse_whitespace(&token_iter) {
                         let next_token = token_iter.peek();
                         if next_token.unwrap().token_type == TokenType::Whitespace {
                             token_iter.next();
@@ -77,7 +84,7 @@ pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
 
                                 let next_token = token_iter.peek();
                                 if next_token.unwrap().token_type != TokenType::EqualSign {
-                                    return Err(IssueSummary::new(
+                                    issues_found.push(IssueSummary::new(
                                         &code.main_file_name[..],
                                         next_token.unwrap().line,
                                         next_token.unwrap().pos,
@@ -95,7 +102,7 @@ pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
                                 if next_token.unwrap().token_type
                                     != TokenType::Symbol("FREEBASIC".to_string())
                                 {
-                                    return Err(IssueSummary::new(
+                                    issues_found.push(IssueSummary::new(
                                         &code.main_file_name[..],
                                         next_token.unwrap().line,
                                         next_token.unwrap().pos,
@@ -105,7 +112,7 @@ pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
                             }
                         }
                     } else {
-                        return Err(IssueSummary::new(
+                        issues_found.push(IssueSummary::new(
                             &code.main_file_name[..],
                             token.line,
                             token.pos,
@@ -115,15 +122,15 @@ pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
                 }
 
                 if kind == &end_compiled_str {
-                    if !opened_compiled {
-                        return Err(IssueSummary::new(
+                    if !in_compiled_block {
+                        issues_found.push(IssueSummary::new(
                             &code.main_file_name[..],
                             token.line,
                             token.pos,
                             "#ENDCOMPILE without #COMPILED",
                         ));
                     } else {
-                        opened_compiled = false;
+                        in_compiled_block = false;
                         num_closed += 1;
                     }
                 }
@@ -136,13 +143,13 @@ pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
     }
 
     if num_opened > num_closed {
-        Err(IssueSummary::new(
+        issues_found.push(IssueSummary::new(
             &code.main_file_name[..],
             last_opened_compile_token_line,
             last_opened_compile_token_pos,
             "#COMPILED does not have matching #ENDCOMPILED",
-        ))
-    } else {
-        Ok(())
+        ));
     }
+
+    issues_found
 }

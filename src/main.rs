@@ -47,9 +47,14 @@ fn main() {
     let mut issues_found: i32 = 0;
 
     if rules::compiled::analysis_available(&mut code) {
-        match rules::compiled::pairs_match(&mut code) {
-            Ok(()) => (),
-            Err(v) => {
+        let issues = rules::compiled::pairs_match(&mut code);
+
+        for v in issues {
+//                if issues_found > 0 {
+                    print!("\n{}", "-".repeat(80));
+                    println!();
+                //}
+
                 let lines = &mut code.get_file_content().unwrap().lines();
 
                 issues_found += 1;
@@ -64,22 +69,23 @@ fn main() {
                 print!("{}", " ".repeat((13) as usize));
                 print_color(&v.summary, Color::Red);
             }
-        };
+            println!();
+        
     } else {
         print_color("[i] ", Color::Green);
         println!("No violations against #compile")
     }
 
-    println!("\n----------------------------------------");
-    print!("Analysis finished: ");
+    print!("\n{}", "-".repeat(80));
+    print!("\nAnalysis finished: ");
     if issues_found > 0 {
         print_color(&format!("{}", issues_found), Color::Red);
         print_color(" issue(s) found\n", Color::Red);
     } else {
         print_color("no issues found\n", Color::Green);
     }
-    println!("----------------------------------------");
-
+    print!("{}", "-".repeat(80));
+    println!();
     if issues_found > 0 {
         exit(2)
     }

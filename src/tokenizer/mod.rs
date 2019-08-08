@@ -659,3 +659,13 @@ pub mod tests {
     }
 
 }
+
+pub fn parse_whitespace<T: Iterator<Item = TokenInfo>>(token_iter: &mut Peekable<T>) -> bool {
+    let next_token = token_iter.peek();
+    if next_token.unwrap().token_type == TokenType::Whitespace {
+        token_iter.next();
+        true }
+        else {
+            false
+        }
+}
