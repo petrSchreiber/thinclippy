@@ -370,6 +370,7 @@ pub fn get_tokens(input: &str) -> Vec<TokenInfo> {
                     line: line_no,
                     pos: start_pos_no,
                 });
+                pos_no += 1;
             }
 
             ',' => {
@@ -379,6 +380,7 @@ pub fn get_tokens(input: &str) -> Vec<TokenInfo> {
                     line: line_no,
                     pos: start_pos_no,
                 });
+                pos_no += 1;
             }
 
             '\u{feff}' => {

@@ -1,5 +1,6 @@
 use crate::thinbasic_script::{Code, IssueSummary};
 use crate::tokenizer;
+use crate::tokenizer::TokenType;
 
 pub fn analysis_available(code: &mut Code) -> bool {
     let tokens = code.get_tokens();
@@ -32,7 +33,7 @@ pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
 
     while let Some(&token) = token_iter.peek() {
         match &token.token_type {
-            tokenizer::TokenType::Symbol(kind) => {
+            TokenType::Symbol(kind) => {
                 token_iter.next();
 
                 if kind == &compiled_str {
@@ -42,6 +43,67 @@ pub fn pairs_match(code: &mut Code) -> Result<(), IssueSummary> {
                         num_opened += 1;
                         last_opened_compile_token_line = token.line;
                         last_opened_compile_token_pos = token.pos;
+
+                        // Looking for parameters
+                        let next_token = token_iter.peek();
+                        if next_token.unwrap().token_type == TokenType::Whitespace {
+                            token_iter.next();
+
+                            let next_token = token_iter.peek();
+
+                            // SUPPRESSRTE
+                            if next_token.unwrap().token_type
+                                == TokenType::Symbol("SUPPRESSRTE".to_string())
+                            {
+                                token_iter.next();
+
+                                let next_token = token_iter.peek();
+                                if next_token.unwrap().token_type == TokenType::Whitespace {
+                                    token_iter.next();
+                                }
+                            }
+
+                            // LANGUAGE
+                            let next_token = token_iter.peek();
+                            if next_token.unwrap().token_type
+                                == TokenType::Symbol("LANGUAGE".to_string())
+                            {
+                                token_iter.next();
+
+                                let next_token = token_iter.peek();
+                                if next_token.unwrap().token_type == TokenType::Whitespace {
+                                    token_iter.next();
+                                }
+
+                                let next_token = token_iter.peek();
+                                if next_token.unwrap().token_type != TokenType::EqualSign {
+                                    return Err(IssueSummary::new(
+                                        &code.main_file_name[..],
+                                        next_token.unwrap().line,
+                                        next_token.unwrap().pos,
+                                        "#COMPILED LANGUAGE parameter must be followed by equal sign '='",
+                                    ));
+                                }
+
+                                token_iter.next();
+                                let next_token = token_iter.peek();
+                                if next_token.unwrap().token_type == TokenType::Whitespace {
+                                    token_iter.next();
+                                }
+
+                                let next_token = token_iter.peek();
+                                if next_token.unwrap().token_type
+                                    != TokenType::Symbol("FREEBASIC".to_string())
+                                {
+                                    return Err(IssueSummary::new(
+                                        &code.main_file_name[..],
+                                        next_token.unwrap().line,
+                                        next_token.unwrap().pos,
+                                        "The only valid value for #COMPILED LANGUAGE parameter is FREEBASIC",
+                                    ));
+                                }
+                            }
+                        }
                     } else {
                         return Err(IssueSummary::new(
                             &code.main_file_name[..],
