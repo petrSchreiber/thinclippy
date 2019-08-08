@@ -4,7 +4,7 @@ use std::process::exit;
 
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-mod compiled;
+mod rules;
 mod thinbasic_script;
 mod tokenizer;
 
@@ -42,9 +42,9 @@ fn main() {
 
     let mut issues_found: i32 = 0;
 
-    if compiled::analysis_available(&mut code) {
+    if rules::compiled::analysis_available(&mut code) {
 
-        match compiled::pairs_match(&mut code) {
+        match rules::compiled::pairs_match(&mut code) {
             Ok(()) => (),
             Err(v) => {
                 let lines = &mut code.get_file_content().unwrap().lines();
