@@ -20,7 +20,7 @@ pub enum TokenType {
     Text(String),
     Comment(String),
     Unknown(char),
-    Comma
+    Comma,
 }
 
 fn get_number<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>, pos: &mut u32) -> String {
@@ -39,7 +39,6 @@ fn get_number<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>, pos: &mut u
     }
     token
 }
-
 
 fn get_comparator<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>, pos: &mut u32) -> String {
     let mut token = String::new();
@@ -250,7 +249,6 @@ pub fn get_tokens(input: &str) -> Vec<TokenInfo> {
                         line: line_no,
                         pos: start_pos_no,
                     });
-
                 }
             }
 
@@ -270,7 +268,7 @@ pub fn get_tokens(input: &str) -> Vec<TokenInfo> {
                     line: line_no,
                     pos: start_pos_no,
                 });
-            }            
+            }
 
             '/' => {
                 char_iter.next(); // Absorb first /
@@ -381,9 +379,10 @@ pub fn get_tokens(input: &str) -> Vec<TokenInfo> {
                     line: line_no,
                     pos: start_pos_no,
                 });
-            }            
+            }
 
-            '\u{feff}' => { // Just BOM
+            '\u{feff}' => {
+                // Just BOM
                 char_iter.next();
                 pos_no += 1;
             }
@@ -590,11 +589,23 @@ pub mod tests {
 
         let tokens = get_tokens(code);
 
-        assert_eq!(tokens.get(1).unwrap().token_type, TokenType::Comparator(">=".to_string()));
-        assert_eq!(tokens.get(5).unwrap().token_type, TokenType::Comparator("<=".to_string()));
-        assert_eq!(tokens.get(9).unwrap().token_type, TokenType::Comparator("<".to_string()));
-        assert_eq!(tokens.get(13).unwrap().token_type, TokenType::Comparator(">".to_string()));
-    }    
+        assert_eq!(
+            tokens.get(1).unwrap().token_type,
+            TokenType::Comparator(">=".to_string())
+        );
+        assert_eq!(
+            tokens.get(5).unwrap().token_type,
+            TokenType::Comparator("<=".to_string())
+        );
+        assert_eq!(
+            tokens.get(9).unwrap().token_type,
+            TokenType::Comparator("<".to_string())
+        );
+        assert_eq!(
+            tokens.get(13).unwrap().token_type,
+            TokenType::Comparator(">".to_string())
+        );
+    }
 
     #[test]
     fn get_unknown() {

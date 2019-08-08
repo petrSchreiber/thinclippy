@@ -15,7 +15,11 @@ fn print_color(text: &str, color: Color) {
         .unwrap();
     write!(&mut stdout, "{}", text).unwrap();
     stdout
-        .set_color(ColorSpec::new().set_fg(Some(Color::White)).set_intense(false))
+        .set_color(
+            ColorSpec::new()
+                .set_fg(Some(Color::White))
+                .set_intense(false),
+        )
         .unwrap();
 }
 
@@ -38,28 +42,27 @@ fn main() {
         }
     };
 
-    println!("In {}:\n", main_file_name);    
+    println!("In {}:\n", main_file_name);
 
     let mut issues_found: i32 = 0;
 
     if rules::compiled::analysis_available(&mut code) {
-
         match rules::compiled::pairs_match(&mut code) {
             Ok(()) => (),
             Err(v) => {
                 let lines = &mut code.get_file_content().unwrap().lines();
 
                 issues_found += 1;
-                
+
                 print!("Line {:>5} - ", v.line);
 
-                print_color(lines.nth((v.line-1) as usize).unwrap(), Color::White);
+                print_color(lines.nth((v.line - 1) as usize).unwrap(), Color::White);
                 println!();
 
-                print!("{}", " ".repeat((v.pos+12) as usize));
+                print!("{}", " ".repeat((v.pos + 12) as usize));
                 println!("^");
                 print!("{}", " ".repeat((13) as usize));
-                print_color(&v.summary, Color::Red);                
+                print_color(&v.summary, Color::Red);
             }
         };
     } else {
