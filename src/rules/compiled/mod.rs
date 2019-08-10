@@ -2,22 +2,6 @@ use crate::thinbasic_script::{Code, IssueSummary};
 use crate::tokenizer;
 use crate::tokenizer::TokenType;
 
-pub fn analysis_available(code: &mut Code) -> bool {
-    let tokens = code.get_tokens();
-
-    for token in tokens {
-        if token.token_type == tokenizer::TokenType::Symbol("#COMPILED".to_string()) {
-            return true;
-        }
-
-        if token.token_type == tokenizer::TokenType::Symbol("#ENDCOMPILED".to_string()) {
-            return true;
-        }
-    }
-
-    false
-}
-
 pub fn section_definition(code: &mut Code) -> Vec<IssueSummary> {
     let mut issues_found: Vec<IssueSummary> = vec![];
 
@@ -34,6 +18,8 @@ pub fn section_definition(code: &mut Code) -> Vec<IssueSummary> {
 
     let compiled_str = "#COMPILED".to_string();
     let end_compiled_str = "#ENDCOMPILED".to_string();
+
+    let file_name = &code.main_file_name[..];
 
     while let Some(&token) = token_iter.peek() {
         match &token.token_type {
@@ -59,22 +45,22 @@ pub fn section_definition(code: &mut Code) -> Vec<IssueSummary> {
                                 tokenizer::parse_whitespace(&mut token_iter);
 
                                 if !tokenizer::parse_equal_sign(&mut token_iter) {
-                                    let next_token = token_iter.peek();
+                                    let next_token = token_iter.peek().unwrap();
                                     issues_found.push(IssueSummary::new(
-                                        &code.main_file_name[..],
-                                        next_token.unwrap().line,
-                                        next_token.unwrap().pos,
+                                        file_name,
+                                        next_token.line,
+                                        next_token.pos,
                                         "#COMPILED LANGUAGE parameter must be followed by equal sign '='",
                                     ));
                                 } else {
                                     tokenizer::parse_whitespace(&mut token_iter);
 
                                     if !tokenizer::parse_symbol(&mut token_iter, "FREEBASIC") {
-                                        let next_token = token_iter.peek();
+                                        let next_token = token_iter.peek().unwrap();
                                         issues_found.push(IssueSummary::new(
-                                            &code.main_file_name[..],
-                                            next_token.unwrap().line,
-                                            next_token.unwrap().pos,
+                                            file_name,
+                                            next_token.line,
+                                            next_token.pos,
                                             "The only valid value for #COMPILED LANGUAGE parameter is FREEBASIC",
                                         ));
                                     }
@@ -83,7 +69,7 @@ pub fn section_definition(code: &mut Code) -> Vec<IssueSummary> {
                         }
                     } else {
                         issues_found.push(IssueSummary::new(
-                            &code.main_file_name[..],
+                            file_name,
                             token.line,
                             token.pos,
                             "Nested #COMPILED not supported",
@@ -94,7 +80,7 @@ pub fn section_definition(code: &mut Code) -> Vec<IssueSummary> {
                 if kind == &end_compiled_str {
                     if !in_compiled_block {
                         issues_found.push(IssueSummary::new(
-                            &code.main_file_name[..],
+                            file_name,
                             token.line,
                             token.pos,
                             "#ENDCOMPILE without #COMPILED",
@@ -114,7 +100,7 @@ pub fn section_definition(code: &mut Code) -> Vec<IssueSummary> {
 
     if num_opened > num_closed {
         issues_found.push(IssueSummary::new(
-            &code.main_file_name[..],
+            file_name,
             last_opened_compile_token_line,
             last_opened_compile_token_pos,
             "#COMPILED does not have matching #ENDCOMPILED",

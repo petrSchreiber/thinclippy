@@ -685,6 +685,46 @@ pub fn parse_symbol(
     }
 }
 
+pub fn parse_whitespace_and_symbol(
+    token_iter: &mut std::iter::Peekable<std::slice::Iter<'_, TokenInfo>>,
+    symbol: &str,
+) -> bool {
+    if !parse_whitespace(token_iter) {
+        return false;
+    }
+
+    let next_token = token_iter.peek();
+    if next_token.unwrap().token_type == TokenType::Symbol(symbol.to_string()) {
+        token_iter.next();
+        true
+    } else {
+        false
+    }
+}
+
+pub fn parse_whitespace_and_any_symbol(
+    token_iter: &mut std::iter::Peekable<std::slice::Iter<'_, TokenInfo>>,
+) -> bool {
+    if !parse_whitespace(token_iter) {
+        return false;
+    }
+
+    let token = token_iter.peek();
+
+    if token.is_none() {
+        return false;
+    }
+
+    match token.unwrap().token_type {
+        TokenType::Symbol(_) => {
+            token_iter.next();
+            true
+        }
+
+        _ => false,
+    }
+}
+
 pub fn parse_equal_sign(
     token_iter: &mut std::iter::Peekable<std::slice::Iter<'_, TokenInfo>>,
 ) -> bool {
@@ -694,5 +734,24 @@ pub fn parse_equal_sign(
         true
     } else {
         false
+    }
+}
+
+pub fn is_last_on_line(
+    token_iter: &mut std::iter::Peekable<std::slice::Iter<'_, TokenInfo>>,
+) -> bool {
+    let next_token = token_iter.peek();
+    let token_type = &next_token.unwrap().token_type;
+
+    parse_whitespace(token_iter);
+
+    if *token_type == TokenType::EndOfLine {
+        return true;
+    }
+
+    match *token_type {
+        TokenType::Comment(_) => true,
+
+        _ => false,
     }
 }

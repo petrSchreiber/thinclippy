@@ -46,32 +46,35 @@ fn main() {
 
     let mut issues_found: i32 = 0;
 
-    if rules::compiled::analysis_available(&mut code) {
-        let issues = rules::compiled::section_definition(&mut code);
+    let mut issues: Vec<thinbasic_script::IssueSummary> = vec![];
 
-        for v in issues {
-            print!("\n{}", "-".repeat(80));
-            println!();
+    let mut compiled_issues = rules::compiled::section_definition(&mut code);
+    issues.append(&mut compiled_issues);
 
-            let lines = &mut code.get_file_content().unwrap().lines();
+    let mut alias_issues = rules::core::alias::check(&mut code);
+    issues.append(&mut alias_issues);
 
-            issues_found += 1;
+    issues.sort_by(|a, b| a.line.cmp(&b.line));
 
-            print!("Line {:>5} - ", v.line);
-
-            print_color(lines.nth((v.line - 1) as usize).unwrap(), Color::White);
-            println!();
-
-            print!("{}", " ".repeat((v.pos + 12) as usize));
-            println!("^");
-            print!("{}", " ".repeat((13) as usize));
-            print_color(&v.summary, Color::Red);
-        }
+    for v in issues {
+        print!("\n{}", "-".repeat(80));
         println!();
-    } else {
-        print_color("[i] ", Color::Green);
-        println!("No violations against #compile")
+
+        let lines = &mut code.get_file_content().unwrap().lines();
+
+        issues_found += 1;
+
+        print!("Line {:>5} - ", v.line);
+
+        print_color(lines.nth((v.line - 1) as usize).unwrap(), Color::White);
+        println!();
+
+        print!("{}", " ".repeat((v.pos + 12) as usize));
+        println!("^");
+        print!("{}", " ".repeat((13) as usize));
+        print_color(&v.summary, Color::Red);
     }
+    println!();
 
     print!("\n{}", "-".repeat(80));
     print!("\nAnalysis finished: ");
