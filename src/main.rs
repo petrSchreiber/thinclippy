@@ -1,48 +1,41 @@
-use std::env;
-use std::io::Write;
 use std::process::exit;
+use termcolor::Color;
 
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use structopt::StructOpt;
 
+mod console;
 mod rules;
 mod thinbasic_script;
 mod tokenizer;
 
-fn print_color(text: &str, color: Color) {
-    let mut stdout = StandardStream::stdout(ColorChoice::Always);
-    stdout
-        .set_color(ColorSpec::new().set_fg(Some(color)).set_intense(true))
-        .unwrap();
-    write!(&mut stdout, "{}", text).unwrap();
-    stdout
-        .set_color(
-            ColorSpec::new()
-                .set_fg(Some(Color::White))
-                .set_intense(false),
-        )
-        .unwrap();
+#[derive(Debug, StructOpt)]
+#[structopt(name = "thinClippy", about = "Tool for thinBasic code analysis.")]
+struct Opt {
+    script_file: String,
+
+    #[structopt(short = "w", long = "wait")]
+    wait: bool,
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        print_color("input error: ", Color::Red);
-        println!("Please supply thinBasic script file name as parameter");
-        exit(1);
-    }
+    let command_line_params = Opt::from_args();
 
-    let main_file_name = (&args[1]).to_string();
+    let main_file_name = command_line_params.script_file;
+
+    println!("In {}:\n", main_file_name);
 
     let mut code = match thinbasic_script::Code::new(&main_file_name) {
         Ok(c) => c,
         Err(e) => {
-            print_color("input error: ", Color::Red);
+            console::print_color("input error: ", Color::Red);
             println!("{}", e);
+
+            if command_line_params.wait {
+                console::wait_enter();
+            }
             exit(1)
         }
     };
-
-    println!("In {}:\n", main_file_name);
 
     let mut issues_found: i32 = 0;
 
@@ -66,27 +59,30 @@ fn main() {
 
         print!("Line {:>5} - ", v.line);
 
-        print_color(lines.nth((v.line - 1) as usize).unwrap(), Color::White);
+        console::print_color(lines.nth((v.line - 1) as usize).unwrap(), Color::White);
         println!();
 
         print!("{}", " ".repeat((v.pos + 12) as usize));
         println!("^");
         print!("{}", " ".repeat((13) as usize));
-        print_color(&v.summary, Color::Red);
+        console::print_color(&v.summary, Color::Red);
     }
     println!();
 
     print!("\n{}", "-".repeat(80));
     print!("\nAnalysis finished: ");
     if issues_found > 0 {
-        print_color(&format!("{}", issues_found), Color::Red);
-        print_color(" issue(s) found\n", Color::Red);
+        console::print_color(&format!("{}", issues_found), Color::Red);
+        console::print_color(" issue(s) found\n", Color::Red);
     } else {
-        print_color("no issues found\n", Color::Green);
+        console::print_color("no issues found\n", Color::Green);
     }
     print!("{}", "-".repeat(80));
     println!();
     if issues_found > 0 {
+        if command_line_params.wait {
+            console::wait_enter();
+        }
         exit(2)
     }
 }
