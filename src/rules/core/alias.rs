@@ -32,7 +32,7 @@ pub fn check(code: &mut Code) -> Vec<IssueSummary> {
                             file_name,
                             next_token.line,
                             next_token.pos,
-                            "Exactly one keyword must be followed by AS",
+                            "Single keyword after ALIAS must be followed by AS",
                         ));
                     } else if !tokenizer::parse_whitespace_and_any_symbol(&mut token_iter) {
                         let next_token = token_iter.peek().unwrap();
