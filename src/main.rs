@@ -1,7 +1,7 @@
 use std::process::exit;
 
-use termcolor::Color;
 use structopt::StructOpt;
+use termcolor::Color;
 
 mod console;
 mod rules;
@@ -38,7 +38,7 @@ fn main() {
 
     print_issues(&issues, &mut code);
 
-    end_program((issues.len() > 0) as i32, command_line_params);
+    end_program((!issues.is_empty()) as i32, command_line_params);
 }
 
 fn get_issues(mut code: &mut thinbasic_script::Code) -> Vec<thinbasic_script::IssueSummary> {
@@ -55,10 +55,8 @@ fn get_issues(mut code: &mut thinbasic_script::Code) -> Vec<thinbasic_script::Is
     issues
 }
 
-fn print_issues(issues: &Vec<thinbasic_script::IssueSummary>, code: &mut thinbasic_script::Code) {
+fn print_issues(issues: &[thinbasic_script::IssueSummary], code: &mut thinbasic_script::Code) {
     for issue in issues {
-        
-
         let mut lines = code.get_file_content().unwrap().lines();
 
         print!("Line {:>5} - ", issue.line);
@@ -78,7 +76,7 @@ fn print_issues(issues: &Vec<thinbasic_script::IssueSummary>, code: &mut thinbas
     print!("{}", "-".repeat(80));
     print!("\nAnalysis finished: ");
 
-    if issues.len() > 0 {
+    if issues.is_empty() {
         console::print_color(&format!("{}", issues.len()), Color::Red);
         console::print_color(" issue(s) found\n", Color::Red);
     } else {
