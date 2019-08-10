@@ -221,6 +221,21 @@ fn get_text<T: Iterator<Item = char>>(
     token
 }
 
+fn skip_till_the_end_of_line<T: Iterator<Item = char>>(char_iter: &mut Peekable<T>) {
+    while let Some(&c) = char_iter.peek() {
+        match c {
+            '\n' => {
+                char_iter.next();
+                return;
+            }
+
+            _ => {
+                char_iter.next();
+            }
+        }
+    }
+}
+
 pub fn get_tokens(input: &str) -> Vec<TokenInfo> {
     let mut simple_tokens: Vec<TokenInfo> = vec![];
 
@@ -243,6 +258,18 @@ pub fn get_tokens(input: &str) -> Vec<TokenInfo> {
                         line: line_no,
                         pos: start_pos_no,
                     });
+                } else if symbol == "_" {
+                    // Line continuation
+
+                    if char_iter.peek() == Some(&' ')
+                        || char_iter.peek() == Some(&'\t')
+                        || char_iter.peek() == Some(&'\r')
+                        || char_iter.peek() == Some(&'\n')
+                    {
+                        skip_till_the_end_of_line(&mut char_iter);
+                        line_no += 1;
+                        pos_no = 0;
+                    }
                 } else {
                     simple_tokens.push(TokenInfo {
                         token_type: TokenType::Symbol(symbol),
@@ -627,6 +654,24 @@ pub mod tests {
         assert_eq!(tokens.get(0).unwrap().line, 1u32);
         assert_eq!(tokens.get(2).unwrap().line, 2u32);
         assert_eq!(tokens.get(4).unwrap().line, 3u32);
+    }
+
+    #[test]
+    fn line_location_with_continuation() {
+        let code = "a _\nb _ \r\nc _ ' some text \r\nd";
+
+        let tokens = get_tokens(code);
+
+        assert_eq!(tokens.get(0).unwrap().line, 1u32); // a
+        assert_eq!(tokens.get(1).unwrap().line, 1u32); // <space>
+
+        assert_eq!(tokens.get(2).unwrap().line, 2u32); // b
+        assert_eq!(tokens.get(3).unwrap().line, 2u32); // <space>
+
+        assert_eq!(tokens.get(4).unwrap().line, 3u32); // c
+        assert_eq!(tokens.get(5).unwrap().line, 3u32); // <space>
+
+        assert_eq!(tokens.get(6).unwrap().line, 4u32); // d
     }
 
     #[test]
