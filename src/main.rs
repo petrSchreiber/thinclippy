@@ -79,10 +79,10 @@ fn print_issues(issues: &[thinbasic_script::IssueSummary], code: &mut thinbasic_
     print!("\nAnalysis finished: ");
 
     if issues.is_empty() {
+        console::print_color("no issues found\n", Color::Green);
+    } else {
         console::print_color(&format!("{}", issues.len()), Color::Red);
         console::print_color(" issue(s) found\n", Color::Red);
-    } else {
-        console::print_color("no issues found\n", Color::Green);
     }
 
     print!("{}", "-".repeat(80));
