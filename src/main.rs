@@ -11,8 +11,10 @@ mod tokenizer;
 #[derive(Debug, StructOpt)]
 #[structopt(name = "thinClippy", about = "Tool for thinBasic code analysis.")]
 struct CommandLineParams {
+    /// Script file for analysis
     script_file: String,
 
+    /// Flag to wait with report display till ENTER confirms it
     #[structopt(short = "w", long = "wait")]
     wait: bool,
 }
