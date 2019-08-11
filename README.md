@@ -22,7 +22,4 @@ You will need Rust programming language to compile the tool.
 ## How to use
 The _thinClippy_ is a command-line tool.
 
-It takes single parameter, the path to script file.
-
-You can use it like:
-`thinClippy <pathToScript>`
+Please run `thinclippy.exe --help` to see all the options.
