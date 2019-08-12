@@ -41,15 +41,17 @@ pub fn section_definition(code: &mut Code) -> Vec<IssueSummary> {
                                 tokenizer::parse_whitespace(&mut token_iter);
                             }
 
+                            let lang_token = token_iter.peek().unwrap();
+                            let language_line = lang_token.line;
+                            let language_end_pos = lang_token.pos + 8;
+
                             if tokenizer::parse_symbol(&mut token_iter, "LANGUAGE") {
                                 tokenizer::parse_whitespace(&mut token_iter);
-
                                 if !tokenizer::parse_equal_sign(&mut token_iter) {
-                                    let next_token = token_iter.peek().unwrap();
                                     issues_found.push(IssueSummary::new(
                                         file_name,
-                                        next_token.line,
-                                        next_token.pos,
+                                        language_line,
+                                        language_end_pos,
                                         "#COMPILED LANGUAGE parameter must be followed by equal sign '='",
                                     ));
                                 } else {
