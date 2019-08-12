@@ -730,32 +730,10 @@ pub fn parse_symbol(
     }
 }
 
-pub fn parse_whitespace_and_symbol(
-    token_iter: &mut std::iter::Peekable<std::slice::Iter<'_, TokenInfo>>,
-    symbol: &str,
-) -> bool {
-    if !parse_whitespace(token_iter) {
-        return false;
-    }
-
-    let next_token = token_iter.peek();
-    if next_token.unwrap().token_type == TokenType::Symbol(symbol.to_string()) {
-        token_iter.next();
-        true
-    } else {
-        false
-    }
-}
-
-pub fn parse_whitespace_and_any_symbol(
+pub fn parse_any_symbol(
     token_iter: &mut std::iter::Peekable<std::slice::Iter<'_, TokenInfo>>,
 ) -> bool {
-    if !parse_whitespace(token_iter) {
-        return false;
-    }
-
     let token = token_iter.peek();
-
     if token.is_none() {
         return false;
     }
@@ -779,6 +757,36 @@ pub fn parse_equal_sign(
         true
     } else {
         false
+    }
+}
+
+pub fn parse_end_of_line(
+    token_iter: &mut std::iter::Peekable<std::slice::Iter<'_, TokenInfo>>,
+) -> bool {
+    let next_token = token_iter.peek();
+    if next_token.unwrap().token_type == TokenType::EndOfLine {
+        token_iter.next();
+        true
+    } else {
+        false
+    }
+}
+
+pub fn parse_any_text(
+    token_iter: &mut std::iter::Peekable<std::slice::Iter<'_, TokenInfo>>,
+) -> bool {
+    let token = token_iter.peek();
+    if token.is_none() {
+        return false;
+    }
+
+    match token.unwrap().token_type {
+        TokenType::Text(_) => {
+            token_iter.next();
+            true
+        }
+
+        _ => false,
     }
 }
 
