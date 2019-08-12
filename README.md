@@ -4,7 +4,8 @@
 The _thinClippy_ is an optional thinBasic tool to check the thinBasic script source code and provide valuable hints.
 
 ## Currently supported checks
-* formal check of `#compiled/#endcompiled` specification
+* `ALIAS` keyword
+* `#compiled/#endcompiled` specification
 
 ## How to build from code
 You will need Rust programming language to compile the tool.
