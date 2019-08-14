@@ -20,6 +20,11 @@ You will need Rust programming language to compile the tool.
   * For *Modify PATH variable?* enter *y*
   * Proceed with installation with *1*
 
+### Producing executable
+* Go to the root of the repository
+* Execute `cargo build --release`
+* Stand-alone executable will appear in `target/release` folder
+
 ## How to use
 The _thinClippy_ is a command-line tool.
 
